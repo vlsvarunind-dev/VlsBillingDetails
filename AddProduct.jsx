@@ -1,0 +1,232 @@
+import React, { useState, useEffect } from "react";
+import "./DeliveryForm.css";
+import "./ProductForm.css";
+import { supabase } from './supabaseClient';
+
+function AddProduct() {
+  const [formData, setFormData] = useState({
+    productName: "",
+    type: "",
+    cylinderType: "",
+    defaultPrice: ""
+  });
+  const [productTypes, setProductTypes] = useState([]);
+  const [showTypeModal, setShowTypeModal] = useState(false);
+  const [newType, setNewType] = useState("");
+
+  useEffect(() => {
+    fetchProductTypes();
+  }, []);
+
+  const fetchProductTypes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('VSRPRODUCTS')
+        .select('type');
+      
+      if (error) {
+        console.error('Supabase error:', error);
+        setProductTypes([]);
+      } else {
+        // Get distinct types
+        const uniqueTypes = [...new Set(data.map(item => item.type))].filter(type => type);
+        setProductTypes(uniqueTypes.sort());
+      }
+    } catch (error) {
+      console.error('Error fetching product types:', error);
+      setProductTypes([]);
+    }
+  };
+
+  const handleAddType = (e) => {
+    e.preventDefault();
+    if (!newType.trim()) return;
+
+    // Check if type already exists
+    if (productTypes.includes(newType.trim())) {
+      alert("This product type already exists!");
+      return;
+    }
+
+    // Add the new type to the list
+    setProductTypes([...productTypes, newType.trim()].sort());
+    setFormData({ ...formData, type: newType.trim() });
+    alert("Product type added to the list!");
+    setNewType("");
+    setShowTypeModal(false);
+  };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData({
+      ...formData,
+      [name]: value
+    });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const { data, error } = await supabase
+        .from('VSRPRODUCTS')
+        .insert({
+          product_name: formData.productName,
+          type: formData.type,
+          cylinder_type: formData.type === 'Cylinder' ? formData.cylinderType : null,
+          default_price: formData.defaultPrice ? parseFloat(formData.defaultPrice) : null,
+          created_at: new Date().toISOString()
+        });
+      
+      if (error) {
+        console.error('Supabase error:', error);
+        alert(`Error adding product: ${error.message}`);
+      } else {
+        console.log('Saved to Supabase:', data);
+        alert("Product added successfully!");
+        setFormData({
+          productName: "",
+          cylinderType: "",
+          type: "",
+          defaultPrice: ""
+        });
+        fetchProductTypes(); // Refresh the types list
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert(`Error adding product: ${error.message}`);
+    }
+  };
+
+  return (
+    <div className="product-container">
+      <div className="product-form-card">
+        <h2 className="product-form-title">Add New Product</h2>
+
+        <form onSubmit={handleSubmit}>
+          <div className="input-group">
+            <label>Product Name *</label>
+            <input
+              type="text"
+              name="productName"
+              placeholder="Enter product name"
+              value={formData.productName}
+              onChange={handleChange}
+              required
+            />
+          </div>
+
+          <div className="input-group">
+            <label>Type *</label>
+            <select
+              name="type"
+              value={formData.type}
+              onChange={handleChange}
+              required
+              style={{
+                width: '100%',
+                padding: '10px',
+                borderRadius: '6px',
+                border: '1px solid #ddd',
+                fontSize: '14px',
+                fontFamily: 'inherit'
+              }}
+            >
+              <option value="">-- Select Product Type --</option>
+              {productTypes.map((type, idx) => (
+                <option key={idx} value={type}>
+                  {type}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={() => setShowTypeModal(true)}
+              className="add-type-button"
+            >
+              + Add Product Type
+            </button>
+          </div>
+{formData.type === 'Cylinder' && (
+            <div className="input-group">
+              <label>Cylinder Type *</label>
+              <input
+                type="text"
+                name="cylinderType"
+                placeholder="Enter cylinder type (e.g., 7 Kg, 19 Kg, 47.5 Kg)"
+                value={formData.cylinderType}
+                onChange={handleChange}
+                required={formData.type === 'Cylinder'}
+                style={{
+                  width: '100%',
+                  padding: '10px',
+                  borderRadius: '6px',
+                  border: '1px solid #ddd',
+                  fontSize: '14px',
+                  fontFamily: 'inherit'
+                }}
+              />
+            </div>
+          )}
+
+          
+          <div className="input-group">
+            <label>Default Price</label>
+            <input
+              type="number"
+              name="defaultPrice"
+              placeholder="Enter default price (optional)"
+              value={formData.defaultPrice}
+              onChange={handleChange}
+              step="0.01"
+              min="0"
+            />
+          </div>
+
+          <button type="submit">Add Product</button>
+        </form>
+      </div>
+
+      {showTypeModal && (
+        <div className="type-modal-overlay" onClick={() => setShowTypeModal(false)}>
+          <div className="type-modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="type-modal-header">
+              <h3>Add New Product Type</h3>
+              <button className="close-button" onClick={() => setShowTypeModal(false)}>✕</button>
+            </div>
+            <form onSubmit={handleAddType} style={{ padding: '20px' }}>
+              <div className="input-group">
+                <label>Type Name *</label>
+                <input
+                  type="text"
+                  placeholder="Enter product type name"
+                  value={newType}
+                  onChange={(e) => setNewType(e.target.value)}
+                  required
+                  autoFocus
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    borderRadius: '6px',
+                    border: '1px solid #ddd',
+                    fontSize: '14px',
+                    fontFamily: 'inherit'
+                  }}
+                />
+              </div>
+              <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+                <button type="submit" style={{ flex: 1, padding: '10px', background: '#28a745', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}>
+                  Add Type
+                </button>
+                <button type="button" onClick={() => setShowTypeModal(false)} style={{ flex: 1, padding: '10px', background: '#6c757d', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: '600' }}>
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default AddProduct;
