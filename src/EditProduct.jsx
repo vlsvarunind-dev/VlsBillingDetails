@@ -6,8 +6,6 @@ import { supabase } from "./supabaseClient";
 function EditProduct() {
   const [products, setProducts] = useState([]);
   const [selectedProduct, setSelectedProduct] = useState(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filteredProducts, setFilteredProducts] = useState([]);
   const [productTypes, setProductTypes] = useState([]);
   const [showTypeModal, setShowTypeModal] = useState(false);
   const [newType, setNewType] = useState("");
@@ -15,7 +13,8 @@ function EditProduct() {
     productName: "",
     type: "",
     cylinderType: "",
-    defaultPrice: ""
+    defaultPrice: "",
+    hsnCode: ""
   });
 
   useEffect(() => {
@@ -34,7 +33,6 @@ function EditProduct() {
         console.error('Supabase error:', error);
       } else {
         setProducts(data || []);
-        setFilteredProducts(data || []);
       }
     } catch (error) {
       console.error('Error fetching products:', error);
@@ -79,51 +77,33 @@ function EditProduct() {
     setShowTypeModal(false);
   };
 
-  const handleSearch = () => {
-    if (!searchTerm.trim()) {
-      setFilteredProducts(products);
+  const handleProductSelect = (e) => {
+    const productId = e.target.value;
+    
+    if (!productId) {
+      setSelectedProduct(null);
+      setFormData({ productName: "", type: "", cylinderType: "", defaultPrice: "", hsnCode: "" });
       return;
     }
 
-    const filtered = products.filter(product => 
-      product.product_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.type.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-    
-    setFilteredProducts(filtered);
-  };
-
-  const handleSearchInputChange = (e) => {
-    const value = e.target.value;
-    setSearchTerm(value);
-    
-    // Auto-filter as user types
-    if (!value.trim()) {
-      setFilteredProducts(products);
-    } else {
-      const filtered = products.filter(product => 
-        product.product_name.toLowerCase().includes(value.toLowerCase()) ||
-        product.type.toLowerCase().includes(value.toLowerCase())
-      );
-      setFilteredProducts(filtered);
+    const product = products.find(p => p.id.toString() === productId);
+    if (product) {
+      setSelectedProduct(product);
+      setFormData({
+        productName: product.product_name,
+        type: product.type,
+        cylinderType: product.cylinder_type || "",
+        defaultPrice: product.default_price || "",
+        hsnCode: product.hsn_code || ""
+      });
     }
   };
 
-  const handleProductSelect = (product) => {
-    setSelectedProduct(product);
-    setFormData({
-      productName: product.product_name,
-      type: product.type,
-      cylinderType: product.cylinder_type || "",
-      defaultPrice: product.default_price || ""
-    });
-  };
-
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
     setFormData({
       ...formData,
-      [name]: value
+      [name]: type === 'checkbox' ? checked : value
     });
   };
 
@@ -136,7 +116,8 @@ function EditProduct() {
           product_name: formData.productName,
           type: formData.type,
           cylinder_type: formData.type === 'Cylinder' ? formData.cylinderType : null,
-          default_price: formData.defaultPrice ? parseFloat(formData.defaultPrice) : null
+          default_price: formData.defaultPrice ? parseFloat(formData.defaultPrice) : null,
+          hsn_code: formData.hsnCode || null
         })
         .eq('id', selectedProduct.id);
       
@@ -146,8 +127,7 @@ function EditProduct() {
       } else {
         alert("Product updated successfully!");
         setSelectedProduct(null);
-        setFormData({ productName: "", type: "", cylinderType: "", defaultPrice: "" });
-        setSearchTerm("");
+        setFormData({ productName: "", type: "", cylinderType: "", defaultPrice: "", hsnCode: "" });
         fetchProducts();
       }
     } catch (error) {
@@ -171,8 +151,7 @@ function EditProduct() {
       } else {
         alert("Product deleted successfully!");
         setSelectedProduct(null);
-        setFormData({ productName: "", type: "", cylinderType: "", defaultPrice: "" });
-        setSearchTerm("");
+        setFormData({ productName: "", type: "", cylinderType: "", defaultPrice: "", hsnCode: "" });
         fetchProducts();
       }
     } catch (error) {
@@ -182,56 +161,28 @@ function EditProduct() {
   };
 
   return (
-    <div className="product-container">
-      <div className="product-form-card">
-        <h2 className="product-form-title">Edit Product</h2>
+    <div className="page-container">
+      <div className="page-card">
+        <h2 className="page-title">Edit Product</h2>
 
         {!selectedProduct ? (
-          <div className="product-list">
-            <form onSubmit={(e) => { e.preventDefault(); handleSearch(); }} className="search-form-product">
-              <div className="search-input-group">
-                <label>Search Product</label>
-                <input
-                  type="text"
-                  placeholder="Search by product name or type..."
-                  value={searchTerm}
-                  onChange={handleSearchInputChange}
-                  className="search-input-product"
-                />
-              </div>
-              
-              <button type="submit" className="btn-search-product">
-                🔍 Search
-              </button>
-            </form>
-
-            <h3 style={{ fontSize: '16px', marginBottom: '15px', color: '#666' }}>
-              {filteredProducts.length === products.length 
-                ? 'Select a product to edit:' 
-                : `Found ${filteredProducts.length} product(s):`
-              }
-            </h3>
-            {filteredProducts.length > 0 ? (
-              filteredProducts.map((product, index) => (
-                <div 
-                  key={index} 
-                  className="product-item"
-                  onClick={() => handleProductSelect(product)}
-                >
-                  <div className="product-item-name">
-                    {product.product_name}
+          <div className="select-product-section">
+            <div className="input-group">
+              <label>Select Product</label>
+              <select
+                onChange={handleProductSelect}
+                value={selectedProduct?.id || ""}
+                className="product-select"
+              >
+                <option value="">-- Select a Product --</option>
+                {products.map((product) => (
+                  <option key={product.id} value={product.id}>
+                    {product.product_name} - {product.type}
                     {product.cylinder_type && ` (${product.cylinder_type})`}
-                  </div>
-                  <div className="product-item-details">
-                    🏷️ {product.type} | ₹{product.default_price || 0}
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="no-products">
-                {searchTerm ? 'No products match your search.' : 'No products found. Add a product first.'}
-              </div>
-            )}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         ) : (
           <form onSubmit={handleSubmit}>
@@ -279,26 +230,39 @@ function EditProduct() {
             </div>
 
             {formData.type === 'Cylinder' && (
-              <div className="input-group">
-                <label>Cylinder Type *</label>
-                <input
-                  type="text"
-                  name="cylinderType"
-                  placeholder="Enter cylinder type (e.g., 7 Kg, 19 Kg, 47.5 Kg)"
-                  value={formData.cylinderType}
-                  onChange={handleChange}
-                  required={formData.type === 'Cylinder'}
-                  style={{
-                    width: '100%',
-                    padding: '10px',
-                    borderRadius: '6px',
-                    border: '1px solid #ddd',
-                    fontSize: '14px',
-                    fontFamily: 'inherit'
-                  }}
-                />
-              </div>
+              <>
+                <div className="input-group">
+                  <label>Cylinder Type *</label>
+                  <input
+                    type="text"
+                    name="cylinderType"
+                    placeholder="Enter cylinder type (e.g., 7 Kg, 19 Kg, 47.5 Kg)"
+                    value={formData.cylinderType}
+                    onChange={handleChange}
+                    required={formData.type === 'Cylinder'}
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      borderRadius: '6px',
+                      border: '1px solid #ddd',
+                      fontSize: '14px',
+                      fontFamily: 'inherit'
+                    }}
+                  />
+                </div>
+              </>
             )}
+
+            <div className="input-group">
+              <label>HSN Code</label>
+              <input
+                type="text"
+                name="hsnCode"
+                placeholder="Enter HSN code (e.g., 9973)"
+                value={formData.hsnCode}
+                onChange={handleChange}
+              />
+            </div>
 
             <div className="input-group">
               <label>Default Price</label>
@@ -320,9 +284,7 @@ function EditProduct() {
                 className="cancel-button"
                 onClick={() => {
                   setSelectedProduct(null);
-                  setFormData({ productName: "", type: "", cylinderType: "", defaultPrice: "" });
-                  setSearchTerm("");
-                  setFilteredProducts(products);
+                  setFormData({ productName: "", type: "", cylinderType: "", defaultPrice: "", hsnCode: "" });
                 }}
               >
                 Cancel

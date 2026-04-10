@@ -25,7 +25,7 @@ function ReceivedDetails({ onNavigate }) {
       const { data, error } = await supabase
         .from('VSRCUSTOMERDATA')
         .select('*')
-        .order('id', { ascending: true });
+        .order('name', { ascending: true });
       
       if (error) {
         console.error('Supabase error:', error);
@@ -176,19 +176,20 @@ function ReceivedDetails({ onNavigate }) {
       console.log('✓ Successfully updated:', data);
       alert("Cylinder received details saved successfully!");
       
-      const resetCustomer = formData.customerName;
+      // Preserve date and customer name
+      const preservedDate = formData.receivedDate;
+      const preservedCustomer = formData.customerName;
+      
       setFormData({
-        receivedDate: "",
-        customerName: resetCustomer,
+        receivedDate: preservedDate,
+        customerName: preservedCustomer,
         cylinderNumber: "",
         cylinderType: ""
       });
       setSelectedDelivery(null);
-      const today = new Date().toISOString().split("T")[0];
-      setFormData(prev => ({ ...prev, receivedDate: today, customerName: resetCustomer }));
       
       // Refresh pending deliveries
-      fetchPendingDeliveries(resetCustomer);
+      fetchPendingDeliveries(preservedCustomer);
       
     } catch (error) {
       console.error('Caught exception:', error);
@@ -197,8 +198,9 @@ function ReceivedDetails({ onNavigate }) {
   };
 
   return (
-    <div className="form-card">
-      <h2>Received Details</h2>
+    <div className="page-container">
+      <div className="page-card">
+        <h2 className="page-title">Received Details</h2>
 
       <form onSubmit={handleSubmit}>
         <div className="input-group">
@@ -220,11 +222,15 @@ function ReceivedDetails({ onNavigate }) {
           <label>Select Cylinder</label>
           <select onChange={handleDeliverySelect} value={formData.cylinderNumber} disabled={!formData.customerName} required>
             <option value="">-- Select a cylinder --</option>
-            {pendingDeliveries.map((delivery, index) => (
-              <option key={index} value={delivery.cylinderNumber}>
-                {delivery.cylinderNumber} - {delivery.cylinderType} - Delivered: {delivery.deliveredDate}
-              </option>
-            ))}
+            {pendingDeliveries.map((delivery, index) => {
+              // Extract gas type from product name (e.g., "Oxygen Cylinder" -> "Oxygen")
+              const gasType = delivery.itemName.replace(/\s*Cylinder\s*/i, '').trim() || delivery.cylinderType;
+              return (
+                <option key={index} value={delivery.cylinderNumber}>
+                  {delivery.cylinderNumber} - {gasType} - Delivered: {delivery.deliveredDate}
+                </option>
+              );
+            })}
           </select>
         </div>
 
@@ -240,6 +246,7 @@ function ReceivedDetails({ onNavigate }) {
 
         <button type="submit" disabled={!selectedDelivery}>Save Entry</button>
       </form>
+      </div>
     </div>
   );
 }

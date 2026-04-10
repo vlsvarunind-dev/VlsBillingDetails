@@ -85,8 +85,8 @@ function ViewCustomer({ onNavigate }) {
   };
 
   return (
-    <div className="view-customer-container">
-      <h2>View Customer Details</h2>
+    <div className="page-container">
+      <h2 className="page-title">View Customer Details</h2>
 
       <div className="customer-select-form">
         <div className="select-input-group">
@@ -183,22 +183,28 @@ function ViewCustomer({ onNavigate }) {
                       </tr>
                     </thead>
                     <tbody>
-                      {deliveryHistory.map((item, index) => (
-                        <tr key={item.id}>
-                          <td>{index + 1}</td>
-                          <td>{item.dc_number || "-"}</td>
-                          <td>{item.product_name || "-"}</td>
-                          <td>{item.cylinder_type || "-"}</td>
-                          <td>{item.cylinder_number || "-"}</td>
-                          <td>{formatDate(item.delivered_date)}</td>
-                          <td>{formatDate(item.received_date)}</td>
-                          <td>
-                            <span className={`status-badge ${item.received_date ? 'received' : 'pending'}`}>
-                              {item.received_date ? 'Received' : 'Pending'}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
+                      {deliveryHistory
+                        .filter(item => 
+                          item.product_type === 'Cylinder' && 
+                          !item.product_name?.toUpperCase().includes('LPG')
+                        )
+                        .map((item, index) => (
+                          <tr key={item.id}>
+                            <td>{index + 1}</td>
+                            <td>{item.dc_number || "-"}</td>
+                            <td>{item.product_name || "-"}</td>
+                            <td>{item.cylinder_type || "-"}</td>
+                            <td>{item.cylinder_number || "-"}</td>
+                            <td>{formatDate(item.delivered_date)}</td>
+                            <td>{formatDate(item.received_date)}</td>
+                            <td>
+                              <span className={`status-badge ${item.received_date ? 'received' : 'pending'}`}>
+                                {item.received_date ? 'Received' : 'Pending'}
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      }
                     </tbody>
                   </table>
                 </div>

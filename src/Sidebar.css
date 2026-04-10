@@ -1,0 +1,230 @@
+.sidebar {
+  width: 240px;
+  background: var(--primary-navy);
+  padding: 1rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  box-shadow: var(--shadow-lg);
+  min-height: 100vh;
+  border-right: 1px solid var(--gray-800);
+}
+
+.sidebar-title {
+  color: white;
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  text-align: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 0.75rem;
+  letter-spacing: 0.3px;
+}
+
+.sidebar-button {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.95);
+  border: none;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--border-radius-sm);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-left: 3px solid transparent;
+}
+
+.sidebar-button:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-left-color: rgba(255, 255, 255, 0.4);
+  padding-left: 0.875rem;
+}
+
+.sidebar-button.active {
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+  font-weight: 600;
+  border-left-color: white;
+}
+
+.sidebar-button.search-button {
+  background: rgba(8, 145, 178, 0.15);
+  color: #a5f3fc;
+  border-left-color: transparent;
+}
+
+.sidebar-button.search-button:hover {
+  background: rgba(8, 145, 178, 0.25);
+  border-left-color: #a5f3fc;
+}
+
+.sidebar-button.search-button.active {
+  background: rgba(8, 145, 178, 0.3);
+  color: #e0f2fe;
+  border-left-color: #a5f3fc;
+}
+
+.sidebar-section {
+  margin-top: 1rem;
+}
+
+.sidebar-section-title {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+  padding-left: 0.75rem;
+  letter-spacing: 0.8px;
+}
+
+.user-info {
+  background: rgba(255, 255, 255, 0.08);
+  padding: 0.75rem;
+  border-radius: var(--border-radius-sm);
+  margin-bottom: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.user-name {
+  color: white;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+  text-align: center;
+}
+
+.user-phone {
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.75rem;
+  font-weight: 400;
+  text-align: center;
+  word-break: break-word;
+}
+
+.logout-section {
+  margin-top: auto;
+  padding-top: 20px;
+  border-top: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.logout-button {
+  background: linear-gradient(135deg, #dc3545 0%, #c82333 100%) !important;
+  color: white !important;
+  font-weight: 600;
+  justify-content: center;
+}
+
+.logout-button:hover {
+  background: linear-gradient(135deg, #c82333 0%, #bd2130 100%) !important;
+  transform: translateY(-2px) !important;
+}
+
+/* Mobile Menu Toggle - Hidden by default (desktop) */
+.mobile-menu-toggle {
+  display: none;
+}
+
+.sidebar-overlay {
+  display: none;
+}
+
+/* ================================
+   MOBILE RESPONSIVE STYLES
+   ================================ */
+
+@media (max-width: 768px) {
+  /* Show mobile menu toggle button */
+  .mobile-menu-toggle {
+    display: block;
+    position: fixed;
+    top: 1rem;
+    left: 1rem;
+    z-index: 1001;
+    background: var(--primary-navy);
+    border: none;
+    border-radius: var(--border-radius-sm);
+    padding: 0.625rem 0.875rem;
+    cursor: pointer;
+    box-shadow: var(--shadow-lg);
+    transition: all var(--transition-fast);
+  }
+
+  .mobile-menu-toggle:hover {
+    background: var(--primary-navy-light);
+    transform: scale(1.05);
+  }
+
+  .mobile-menu-toggle:active {
+    transform: scale(0.95);
+  }
+
+  .hamburger-icon {
+    color: white;
+    font-size: 1.5rem;
+    line-height: 1;
+    display: block;
+  }
+
+  /* Hide sidebar by default on mobile */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: -100%;
+    width: 280px;
+    max-width: 85vw;
+    height: 100vh;
+    z-index: 1000;
+    transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow-y: auto;
+    box-shadow: none;
+  }
+
+  /* Show sidebar when mobile menu is open */
+  .sidebar.mobile-open {
+    left: 0;
+    box-shadow: 4px 0 12px rgba(0, 0, 0, 0.3);
+  }
+
+  /* Overlay to close menu when clicking outside */
+  .sidebar-overlay {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+    animation: fadeIn 0.3s ease;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+}
+
+/* Tablet breakpoint */
+@media (max-width: 1024px) and (min-width: 769px) {
+  .sidebar {
+    width: 200px;
+  }
+
+  .sidebar-title {
+    font-size: 1rem;
+  }
+
+  .sidebar-button {
+    font-size: 0.75rem;
+    padding: 0.45rem 0.65rem;
+  }
+
+  .sidebar-section-title {
+    font-size: 0.625rem;
+  }
+}

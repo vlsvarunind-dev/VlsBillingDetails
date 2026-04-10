@@ -22,7 +22,6 @@ function GenerateBill({ onNavigate }) {
   const [items, setItems] = useState([
     {
       description: "",
-      cylinderNumbers: "",
       hsnCode: "",
       qty: "",
       rate: "",
@@ -49,6 +48,15 @@ function GenerateBill({ onNavigate }) {
 
   useEffect(() => {
     calculateTotals();
+    
+    // Auto-resize all textareas after items change
+    setTimeout(() => {
+      const textareas = document.querySelectorAll('textarea.editable-input');
+      textareas.forEach(textarea => {
+        textarea.style.height = 'auto';
+        textarea.style.height = textarea.scrollHeight + 2 + 'px';
+      });
+    }, 10);
   }, [items]);
 
   const fetchCustomers = async () => {
@@ -86,7 +94,7 @@ function GenerateBill({ onNavigate }) {
     
     // Reset items when customer changes
     setDeliveredDetails([]);
-    setItems([{ description: "", cylinderNumbers: "", hsnCode: "", qty: "", rate: "", amount: 0 }]);
+    setItems([{ description: "", hsnCode: "", qty: "", rate: "", amount: 0 }]);
   };
 
   const fetchBillItems = async () => {
@@ -123,26 +131,29 @@ function GenerateBill({ onNavigate }) {
       
       console.log('Fetched delivery records:', details);
       
-      // Fetch product prices from VSRPRODUCTS
+      // Fetch product prices and HSN codes from VSRPRODUCTS
       const { data: productsData, error: productsError } = await supabase
         .from('VSRPRODUCTS')
-        .select('product_name, type, default_price');
+        .select('product_name, type, default_price, hsn_code');
       
       if (productsError) {
         console.error('Error fetching products:', productsError);
       }
       
       const productPrices = {};
+      const productHsnCodes = {};
       if (productsData) {
         productsData.forEach(p => {
           const key = `${p.product_name}|${p.type}`;
           productPrices[key] = p.default_price || 0;
+          productHsnCodes[key] = p.hsn_code || '9973';
         });
       }
       
       console.log('Product prices:', productPrices);
+      console.log('Product HSN codes:', productHsnCodes);
       
-      // Group by DC Number + Product Type
+      // Group by Product Type (not by DC Number)
       if (details.length > 0) {
         const groupedItems = {};
         
@@ -152,15 +163,8 @@ function GenerateBill({ onNavigate }) {
           let productType = d.product_type || '';
           
           if (d.product_type === 'Cylinder') {
-            // For cylinders: combine product_name with cylinder_type
-            const baseName = d.product_name || 'Cylinder';
-            const cylinderType = d.cylinder_type || '';
-            
-            if (cylinderType) {
-              productName = `${baseName} (${cylinderType})`;
-            } else {
-              productName = baseName;
-            }
+            // For cylinders: just use product_name without cylinder_type
+            productName = d.product_name || 'Cylinder';
           } else if (d.product_name && d.product_name.trim() !== '') {
             // For non-cylinder products, just use product_name
             productName = d.product_name.trim();
@@ -174,12 +178,12 @@ function GenerateBill({ onNavigate }) {
           const dcNumber = d.dc_number || 'N/A';
           const cylinderNumber = d.cylinder_number || '';
           
-          // Create unique key for DC + Product combination
-          const groupKey = `${dcNumber}|${productName}`;
+          // Create unique key for Product only (not DC + Product)
+          const groupKey = productName;
           
           if (!groupedItems[groupKey]) {
             groupedItems[groupKey] = {
-              dcNumber: dcNumber,
+              dcNumbers: [],
               productName: productName,
               productType: productType,
               baseName: d.product_name || productName,
@@ -188,32 +192,81 @@ function GenerateBill({ onNavigate }) {
             };
           }
           
+          // Add DC number if not already added
+          if (dcNumber && dcNumber !== 'N/A' && !groupedItems[groupKey].dcNumbers.includes(dcNumber)) {
+            groupedItems[groupKey].dcNumbers.push(dcNumber);
+          }
+          
           // Add cylinder number if it exists
           if (cylinderNumber && cylinderNumber.trim() !== '') {
             groupedItems[groupKey].cylinderNumbers.push(cylinderNumber.trim());
           }
           
-          groupedItems[groupKey].quantity += 1;
+          // For LPG cylinders and 3.5 kg cylinders, use the count field. For other cylinders, count each row as 1. For non-cylinders, use the count column
+          const isLPG = d.product_name && d.product_name.toUpperCase().includes('LPG');
+          const is3_5kg = d.cylinder_type === '3.5 kg' || (d.cylinder_type && d.cylinder_type.includes('3.5'));
+          
+          if (d.product_type === 'Cylinder' && (isLPG || is3_5kg)) {
+            // LPG cylinders and 3.5 kg cylinders use count field
+            groupedItems[groupKey].quantity += (d.count || 1);
+          } else if (d.product_type === 'Cylinder') {
+            // Non-LPG, non-3.5kg cylinders: count each row as 1
+            groupedItems[groupKey].quantity += 1;
+          } else {
+            // Non-cylinder products use count field
+            groupedItems[groupKey].quantity += (d.count || 1);
+          }
         });
         
-        console.log('Grouped items by DC + Product:', groupedItems);
+        console.log('Grouped items by Product Type:', groupedItems);
         
         // Convert grouped items to bill items array
         const billItems = Object.values(groupedItems).map((group) => {
-          // Try to find default price
+          // Try to find default price and HSN code
           const priceKey = `${group.baseName}|${group.productType}`;
           const defaultPrice = productPrices[priceKey] || 0;
+          const hsnCode = productHsnCodes[priceKey] || '9973';
           const qty = group.quantity;
           const amount = qty * defaultPrice;
           
+          // Sort DC numbers naturally
+          const sortedDCNumbers = group.dcNumbers.sort((a, b) => {
+            // Convert to string to ensure .match() works
+            const strA = String(a || '');
+            const strB = String(b || '');
+            const numA = parseInt(strA.match(/\d+/)?.[0] || '0');
+            const numB = parseInt(strB.match(/\d+/)?.[0] || '0');
+            return numA - numB;
+          });
+          
+          // Format DC numbers in smaller text
+          const dcNumbersText = sortedDCNumbers.length > 0 
+            ? `\nDC Nos: ${sortedDCNumbers.join(', ')}` 
+            : '';
+          
           return {
-            description: `DC No: ${group.dcNumber} - ${group.productName}`,
-            cylinderNumbers: group.cylinderNumbers.join(', '),
-            hsnCode: '9973',
+            description: `${group.productName}${dcNumbersText}`,
+            hsnCode: hsnCode,
             qty: qty,
             rate: defaultPrice,
-            amount: amount
+            amount: amount,
+            dcNumbers: sortedDCNumbers,
+            productType: group.productType
           };
+        });
+        
+        // Sort bill items: Cylinders first, then by product name
+        billItems.sort((a, b) => {
+          // Put cylinders first
+          const isCylinderA = a.productType === 'Cylinder' ? 0 : 1;
+          const isCylinderB = b.productType === 'Cylinder' ? 0 : 1;
+          
+          if (isCylinderA !== isCylinderB) {
+            return isCylinderA - isCylinderB;
+          }
+          
+          // Within same type, sort alphabetically by product name
+          return a.description.localeCompare(b.description);
         });
         
         console.log('Generated bill items:', billItems);
@@ -224,13 +277,13 @@ function GenerateBill({ onNavigate }) {
         alert(`Found ${details.length} delivery record(s)`);
       } else {
         alert("No delivered and received items found for the selected date range");
-        setItems([{ description: "", cylinderNumbers: "", hsnCode: "", qty: "", rate: "", amount: 0 }]);
+        setItems([{ description: "", hsnCode: "", qty: "", rate: "", amount: 0 }]);
       }
     } catch (err) {
       console.error('Error fetching delivered details:', err);
       alert(`Error: ${err.message}`);
       setDeliveredDetails([]);
-      setItems([{ description: "", cylinderNumbers: "", hsnCode: "", qty: "", rate: "", amount: 0 }]);
+      setItems([{ description: "", hsnCode: "", qty: "", rate: "", amount: 0 }]);
     }
   };
 
@@ -258,12 +311,20 @@ function GenerateBill({ onNavigate }) {
   const addItem = () => {
     setItems([...items, {
       description: "",
-      cylinderNumbers: "",
       hsnCode: "",
       qty: "",
       rate: "",
       amount: 0
     }]);
+  };
+
+  const removeItem = (index) => {
+    if (items.length > 1) {
+      const newItems = items.filter((_, i) => i !== index);
+      setItems(newItems);
+    } else {
+      alert("At least one item is required");
+    }
   };
 
   const calculateTotals = () => {
@@ -282,6 +343,65 @@ function GenerateBill({ onNavigate }) {
       totalTax,
       totalAfterTax
     });
+  };
+
+  const convertToWords = (num) => {
+    const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
+    const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+    const teens = ['Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+
+    if (num === 0) return 'Zero';
+
+    const convertHundreds = (n) => {
+      let str = '';
+      if (n > 99) {
+        str += ones[Math.floor(n / 100)] + ' Hundred ';
+        n %= 100;
+      }
+      if (n > 19) {
+        str += tens[Math.floor(n / 10)] + ' ';
+        n %= 10;
+      } else if (n > 9) {
+        str += teens[n - 10] + ' ';
+        return str;
+      }
+      if (n > 0) {
+        str += ones[n] + ' ';
+      }
+      return str;
+    };
+
+    let words = '';
+    const crore = Math.floor(num / 10000000);
+    const lakh = Math.floor((num % 10000000) / 100000);
+    const thousand = Math.floor((num % 100000) / 1000);
+    const hundred = Math.floor(num % 1000);
+
+    if (crore > 0) {
+      words += convertHundreds(crore) + 'Crore ';
+    }
+    if (lakh > 0) {
+      words += convertHundreds(lakh) + 'Lakh ';
+    }
+    if (thousand > 0) {
+      words += convertHundreds(thousand) + 'Thousand ';
+    }
+    if (hundred > 0) {
+      words += convertHundreds(hundred);
+    }
+
+    return words.trim();
+  };
+
+  const getAmountInWords = (amount) => {
+    const rupees = Math.floor(amount);
+    const paise = Math.round((amount - rupees) * 100);
+    
+    let words = convertToWords(rupees) + ' Rupees';
+    if (paise > 0) {
+      words += ' and ' + convertToWords(paise) + ' Paise';
+    }
+    return words + ' Only';
   };
 
   const handlePrint = () => {
@@ -311,7 +431,8 @@ function GenerateBill({ onNavigate }) {
         // Date Selection Screen
         <div className="bill-setup-container" style={{ 
           padding: '40px 20px',
-          maxWidth: '600px',
+          width: '550px',
+          maxWidth: '550px',
           margin: '0 auto'
         }}>
           <div style={{
@@ -432,7 +553,6 @@ function GenerateBill({ onNavigate }) {
             <h1>V.S.R. ENTERPRISES</h1>
             <p className="company-subtitle">Suppliers of: Oxygen, Nitrogen, LPG and All types of Industrial Gases</p>
             <p className="company-subtitle">Stockiest: Welding Electrodes & Welding Accessories</p>
-            <p className="company-subtitle">Dealer: PREMIER OXYGEN</p>
             <p className="company-address">D.No. 1-1-4/E, Beside Hi-Choice Hotel, Fathenagar Main Road, Hyderabad - 500 018.</p>
             <p className="company-contact">Email: vsrenterprises2006@gmail.com</p>
             <p className="company-gstin">GSTIN: 36AFPPV0731F1ZA</p>
@@ -485,9 +605,6 @@ function GenerateBill({ onNavigate }) {
                 placeholder="Customer GSTIN"
                 className="editable-input"
               />
-            </div>
-            <div className="form-row" style={{ marginTop: '10px', fontSize: '12px', color: '#666' }}>
-              <strong>Billing Period:</strong> {formData.fromDate} to {formData.toDate}
             </div>
           </div>
 
@@ -563,18 +680,60 @@ function GenerateBill({ onNavigate }) {
               <th style={{width: '80px'}}>Qty</th>
               <th style={{width: '100px'}}>Rate</th>
               <th style={{width: '120px'}}>Amount ₹</th>
+              <th className="no-print" style={{width: '40px'}}></th>
             </tr>
           </thead>
           <tbody>
             {items.map((item, index) => (
               <tr key={index}>
                 <td>{index + 1}</td>
-                <td>
-                  <div className="description-cell">
-                    <div className="description-main">{item.description}</div>
-                    {item.cylinderNumbers && (
-                      <div className="description-cylinders">{item.cylinderNumbers}</div>
-                    )}
+                <td style={{ wordWrap: 'break-word', whiteSpace: 'normal', overflow: 'visible', maxWidth: '400px', position: 'relative' }}>
+                  <textarea
+                    value={item.description}
+                    onChange={(e) => handleItemChange(index, 'description', e.target.value)}
+                    placeholder="Product Description"
+                    className="editable-input screen-only-element"
+                    style={{ 
+                      width: '100%', 
+                      minHeight: '35px',
+                      resize: 'none',
+                      fontFamily: 'inherit',
+                      fontSize: 'inherit',
+                      boxSizing: 'border-box',
+                      overflow: 'hidden',
+                      overflowY: 'hidden',
+                      wordWrap: 'break-word',
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                      border: '1px solid #ccc',
+                      padding: '4px'
+                    }}
+                    onInput={(e) => {
+                      e.target.style.height = 'auto';
+                      e.target.style.height = e.target.scrollHeight + 'px';
+                    }}
+                    ref={(el) => {
+                      if (el) {
+                        el.style.height = 'auto';
+                        el.style.height = el.scrollHeight + 'px';
+                      }
+                    }}
+                  />
+                  <div className="print-only-element" style={{ 
+                    wordWrap: 'break-word', 
+                    whiteSpace: 'pre-wrap', 
+                    wordBreak: 'break-word',
+                    lineHeight: '1.4'
+                  }}>
+                    {item.description.split('\n').map((line, idx) => (
+                      <div key={idx}>
+                        {line.startsWith('DC Nos:') ? (
+                          <span style={{ fontSize: '10px', fontStyle: 'italic' }}>{line}</span>
+                        ) : (
+                          line
+                        )}
+                      </div>
+                    ))}
                   </div>
                 </td>
                 <td>
@@ -605,10 +764,28 @@ function GenerateBill({ onNavigate }) {
                   />
                 </td>
                 <td>₹{item.amount.toFixed(2)}</td>
+                <td className="no-print">
+                  <button 
+                    onClick={() => removeItem(index)}
+                    style={{
+                      background: '#f44336',
+                      color: 'white',
+                      border: 'none',
+                      padding: '2px 6px',
+                      borderRadius: '3px',
+                      cursor: 'pointer',
+                      fontSize: '10px'
+                    }}
+                    onMouseOver={(e) => e.target.style.background = '#d32f2f'}
+                    onMouseOut={(e) => e.target.style.background = '#f44336'}
+                  >
+                    ✕
+                  </button>
+                </td>
               </tr>
             ))}
-          <tr className="no-print">
-              <td colSpan="6">
+            <tr className="no-print">
+              <td colSpan="7">
                 <button onClick={addItem} className="btn-add-item">➕ Add Item</button>
               </td>
             </tr>
@@ -625,7 +802,7 @@ function GenerateBill({ onNavigate }) {
             <p><strong>Branch IFSC:</strong> HDFC0000700</p>
             <div className="total-amount-words">
               <label>Total Invoice Amount:</label>
-              <input type="text" className="editable-input" placeholder="Amount in words" />
+              <input type="text" className="editable-input" value={getAmountInWords(taxDetails.totalAfterTax)} readOnly />
             </div>
           </div>
 

@@ -1,4 +1,4 @@
-import { supabase } from './supabaseClient';
+import { supabase } from '../supabaseClient';
 
 // Utility to fetch delivered details for a customer
 export async function fetchDeliveredDetails(customerName) {

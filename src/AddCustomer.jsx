@@ -52,9 +52,9 @@ function AddCustomer() {
   };
 
   return (
-    <div className="customer-container">
-      <div className="customer-form-card">
-        <h2 className="customer-form-title">Add New Customer</h2>
+    <div className="page-container">
+      <div className="page-card">
+        <h2 className="page-title">Add New Customer</h2>
 
         <form onSubmit={handleSubmit}>
           <div className="input-group">

@@ -56,8 +56,8 @@ function SearchCylinder({ onNavigate }) {
   };
 
   return (
-    <div className="search-cylinder-container">
-      <h2>Search Cylinder Number</h2>
+    <div className="page-container">
+      <h2 className="page-title">Search Cylinder Number</h2>
 
       <form onSubmit={handleSearch} className="search-form">
         <div className="search-input-group">

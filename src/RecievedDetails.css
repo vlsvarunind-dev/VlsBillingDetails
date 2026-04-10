@@ -1,0 +1,89 @@
+/* Received Details styles - container handled by global .page-container and .page-card */
+
+.input-group {
+  margin-bottom: 1rem;
+}
+
+label {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  margin-bottom: 0.375rem;
+  color: var(--text-primary);
+}
+
+input,
+select {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8125rem;
+  border-radius: var(--border-radius-sm);
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-primary);
+  transition: all var(--transition-fast);
+  font-family: inherit;
+  color: var(--text-primary);
+}
+
+input:focus,
+select:focus {
+  outline: none;
+  border-color: var(--primary-navy);
+  background-color: var(--bg-primary);
+  box-shadow: 0 0 0 3px rgba(26, 54, 93, 0.1);
+}
+
+input::placeholder {
+  color: var(--text-tertiary);
+}
+
+button {
+  width: 100%;
+  padding: 0.5rem 1rem;
+  background: var(--primary-navy);
+  color: #ffffff;
+  border: none;
+  border-radius: var(--border-radius-sm);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  letter-spacing: 0.8px;
+  margin-top: 8px;
+}
+
+button:hover {
+  background: #2d5a8d;
+  box-shadow: var(--shadow-sm);
+}
+
+button:active {
+  transform: translateY(1px);
+}
+
+/* Received Details-specific tab styles */.tab-header {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 24px;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+.tab-title {
+  color: #6b7280;
+  font-weight: 600;
+  font-size: 14px;
+  padding-bottom: 8px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  border-bottom: 3px solid transparent;
+  margin: 0;
+}
+
+.tab-title.active {
+  color: #4f46e5;
+  border-bottom-color: #4f46e5;
+}
+
+.tab-title.inactive:hover {
+  color: #374151;
+}

@@ -10,7 +10,8 @@ function DeliveryForm({ onNavigate }) {
     productName: "",
     customerName: "",
     cylinderNumber: "",
-    cylinderType: ""
+    cylinderType: "",
+    count: "1"
   });
   
   const [customers, setCustomers] = useState([]);
@@ -30,7 +31,7 @@ function DeliveryForm({ onNavigate }) {
       const { data, error } = await supabase
         .from('VSRCUSTOMERDATA')
         .select('*')
-        .order('id', { ascending: true });
+        .order('name', { ascending: true });
       
       if (error) {
         console.error('Supabase error:', error);
@@ -87,7 +88,7 @@ function DeliveryForm({ onNavigate }) {
   const handleChange = (e) => {
     const { name, value } = e.target;
     if (name === 'itemType') {
-      setFormData({ ...formData, itemType: value, productName: '', cylinderNumber: '', cylinderType: '' });
+      setFormData({ ...formData, itemType: value, productName: '', cylinderNumber: '', cylinderType: '', count: '1' });
       setCylinderTypes([]);
       return;
     }
@@ -110,29 +111,71 @@ function DeliveryForm({ onNavigate }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      // Split cylinder numbers by comma and trim whitespace
-      const cylinderNumbers = formData.cylinderNumber
-        .split(',')
-        .map(num => num.trim())
-        .filter(num => num.length > 0);
+      let records;
       
-      if (cylinderNumbers.length === 0) {
-        alert('Please enter at least one cylinder number');
-        return;
+      // For cylinder type, handle LPG separately or split multiple cylinder numbers
+      if (formData.itemType === 'Cylinder') {
+        // Check if this is an LPG cylinder (typically tracked by count, not individual numbers)
+        const isLPGType = formData.productName.toUpperCase().includes('LPG') || 
+                         formData.cylinderType.toUpperCase().includes('LPG');
+        
+        if (isLPGType) {
+          // Use count for LPG products that don't track individual cylinder numbers
+          const productCount = parseInt(formData.count) || 1;
+          records = [{
+            delivered_date: formData.deliveredDate,
+            dc_number: formData.dcNumber,
+            product_type: formData.itemType,
+            product_name: formData.productName,
+            customer_name: formData.customerName,
+            cylinder_number: null,
+            cylinder_type: formData.cylinderType,
+            count: productCount,
+            type: 'delivery',
+            created_at: new Date().toISOString()
+          }];
+        } else {
+          // For other cylinder types, handle multiple cylinder numbers
+          // Split cylinder numbers by comma and trim whitespace
+          const cylinderNumbers = formData.cylinderNumber
+            .split(',')
+            .map(num => num.trim())
+            .filter(num => num.length > 0);
+          
+          if (cylinderNumbers.length === 0) {
+            alert('Please enter at least one cylinder number');
+            return;
+          }
+          
+          // Create an array of records (one for each cylinder number)
+          records = cylinderNumbers.map((cylinderNum) => ({
+            delivered_date: formData.deliveredDate,
+            dc_number: formData.dcNumber,
+            product_type: formData.itemType,
+            product_name: formData.productName,
+            customer_name: formData.customerName,
+            cylinder_number: cylinderNum,
+            cylinder_type: formData.cylinderType,
+            type: 'delivery',
+            created_at: new Date().toISOString()
+          }));
+        }
+      } else {
+        // For non-cylinder products, create a single record without cylinder number
+        const productCount = parseInt(formData.count) || 1;
+        records = [{
+          delivered_date: formData.deliveredDate,
+          dc_number: formData.dcNumber,
+          product_type: formData.itemType,
+          product_name: formData.productName,
+          customer_name: formData.customerName,
+          cylinder_number: null,
+          cylinder_type: null,
+          count: productCount,
+          type: 'delivery',
+          created_at: new Date().toISOString()
+        }];
       }
-      
-      // Create an array of records (one for each cylinder number)
-      const records = cylinderNumbers.map((cylinderNum) => ({
-        delivered_date: formData.deliveredDate,
-        dc_number: formData.dcNumber,
-        product_type: formData.itemType,
-        product_name: formData.productName,
-        customer_name: formData.customerName,
-        cylinder_number: cylinderNum,
-        cylinder_type: formData.cylinderType,
-        type: 'delivery',
-        created_at: new Date().toISOString()
-      }));
       
       const { data, error } = await supabase
         .from('VSRCYLINDERDATA')
@@ -143,18 +186,25 @@ function DeliveryForm({ onNavigate }) {
         alert(`Error saving delivery: ${error.message}`);
       } else {
         console.log('Saved to Supabase:', data);
-        alert(`${cylinderNumbers.length} cylinder delivery record(s) saved successfully!`);
+        const recordCount = records.length;
+        const recordType = formData.itemType === 'Cylinder' ? 'cylinder delivery' : 'delivery';
+        alert(`${recordCount} ${recordType} record(s) saved successfully!`);
+        
+        // Preserve date and customer name
+        const preservedDate = formData.deliveredDate;
+        const preservedCustomer = formData.customerName;
+        
         setFormData({
-          deliveredDate: "",
+          deliveredDate: preservedDate,
           dcNumber: "",
           itemType: "",
           productName: "",
-          customerName: "",
+          customerName: preservedCustomer,
           cylinderNumber: "",
-          cylinderType: ""
+          cylinderType: "",
+          count: "1"
         });
-        const today = new Date().toISOString().split("T")[0];
-        setFormData(prev => ({ ...prev, deliveredDate: today }));
+        setCylinderTypes([]);
       }
     } catch (error) {
       console.error('Error:', error);
@@ -163,8 +213,9 @@ function DeliveryForm({ onNavigate }) {
   };
 
   return (
-    <div className="form-card">
-      <h2>Delivered Details</h2>
+    <div className="page-container">
+      <div className="page-card">
+        <h2 className="page-title">Delivered Details</h2>
 
       <form onSubmit={handleSubmit}>
         <div className="input-group">
@@ -221,17 +272,6 @@ function DeliveryForm({ onNavigate }) {
         {formData.itemType === 'Cylinder' && (
           <>
             <div className="input-group">
-              <label>Cylinder Number(s) <small>(separate multiple with commas)</small></label>
-              <input
-                type="text"
-                name="cylinderNumber"
-                placeholder="CYL-1001, CYL-1002, CYL-1003"
-                value={formData.cylinderNumber}
-                onChange={handleChange}
-                required
-              />
-            </div>
-            <div className="input-group">
               <label>Cylinder Type</label>
               <select name="cylinderType" value={formData.cylinderType} onChange={handleChange} required>
                 <option value="">Select Cylinder Type</option>
@@ -242,11 +282,54 @@ function DeliveryForm({ onNavigate }) {
                 ))}
               </select>
             </div>
+            {formData.cylinderType && !(formData.productName.toUpperCase().includes('LPG') || formData.cylinderType.toUpperCase().includes('LPG')) && (
+              <div className="input-group">
+                <label>Cylinder Number(s) <small>(separate multiple with commas)</small></label>
+                <input
+                  type="text"
+                  name="cylinderNumber"
+                  placeholder="CYL-1001, CYL-1002, CYL-1003"
+                  value={formData.cylinderNumber}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+            )}
+            {formData.cylinderType && (formData.productName.toUpperCase().includes('LPG') || formData.cylinderType.toUpperCase().includes('LPG')) && (
+              <div className="input-group">
+                <label>Count/Quantity</label>
+                <input
+                  type="number"
+                  name="count"
+                  placeholder="1"
+                  min="1"
+                  value={formData.count}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+            )}
           </>
+        )}
+
+        {formData.itemType && formData.itemType !== 'Cylinder' && (
+          <div className="input-group">
+            <label>Count/Quantity</label>
+            <input
+              type="number"
+              name="count"
+              placeholder="1"
+              min="1"
+              value={formData.count}
+              onChange={handleChange}
+              required
+            />
+          </div>
         )}
 
         <button type="submit">Save Entry</button>
       </form>
+      </div>
     </div>
   );
 }

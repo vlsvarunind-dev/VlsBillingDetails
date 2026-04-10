@@ -8,7 +8,8 @@ function AddProduct() {
     productName: "",
     type: "",
     cylinderType: "",
-    defaultPrice: ""
+    defaultPrice: "",
+    hsnCode: ""
   });
   const [productTypes, setProductTypes] = useState([]);
   const [showTypeModal, setShowTypeModal] = useState(false);
@@ -57,10 +58,10 @@ function AddProduct() {
   };
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
     setFormData({
       ...formData,
-      [name]: value
+      [name]: type === 'checkbox' ? checked : value
     });
   };
 
@@ -74,6 +75,7 @@ function AddProduct() {
           type: formData.type,
           cylinder_type: formData.type === 'Cylinder' ? formData.cylinderType : null,
           default_price: formData.defaultPrice ? parseFloat(formData.defaultPrice) : null,
+          hsn_code: formData.hsnCode || null,
           created_at: new Date().toISOString()
         });
       
@@ -87,7 +89,8 @@ function AddProduct() {
           productName: "",
           cylinderType: "",
           type: "",
-          defaultPrice: ""
+          defaultPrice: "",
+          hsnCode: ""
         });
         fetchProductTypes(); // Refresh the types list
       }
@@ -98,9 +101,9 @@ function AddProduct() {
   };
 
   return (
-    <div className="product-container">
-      <div className="product-form-card">
-        <h2 className="product-form-title">Add New Product</h2>
+    <div className="page-container">
+      <div className="page-card">
+        <h2 className="page-title">Add New Product</h2>
 
         <form onSubmit={handleSubmit}>
           <div className="input-group">
@@ -147,28 +150,40 @@ function AddProduct() {
             </button>
           </div>
 {formData.type === 'Cylinder' && (
-            <div className="input-group">
-              <label>Cylinder Type *</label>
-              <input
-                type="text"
-                name="cylinderType"
-                placeholder="Enter cylinder type (e.g., 7 Kg, 19 Kg, 47.5 Kg)"
-                value={formData.cylinderType}
-                onChange={handleChange}
-                required={formData.type === 'Cylinder'}
-                style={{
-                  width: '100%',
-                  padding: '10px',
-                  borderRadius: '6px',
-                  border: '1px solid #ddd',
-                  fontSize: '14px',
-                  fontFamily: 'inherit'
-                }}
-              />
-            </div>
+            <>
+              <div className="input-group">
+                <label>Cylinder Type *</label>
+                <input
+                  type="text"
+                  name="cylinderType"
+                  placeholder="Enter cylinder type (e.g., 7 Kg, 19 Kg, 47.5 Kg)"
+                  value={formData.cylinderType}
+                  onChange={handleChange}
+                  required={formData.type === 'Cylinder'}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    borderRadius: '6px',
+                    border: '1px solid #ddd',
+                    fontSize: '14px',
+                    fontFamily: 'inherit'
+                  }}
+                />
+              </div>
+            </>
           )}
 
-          
+          <div className="input-group">
+            <label>HSN Code</label>
+            <input
+              type="text"
+              name="hsnCode"
+              placeholder="Enter HSN code (e.g., 9973)"
+              value={formData.hsnCode}
+              onChange={handleChange}
+            />
+          </div>
+
           <div className="input-group">
             <label>Default Price</label>
             <input

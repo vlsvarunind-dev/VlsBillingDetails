@@ -6,8 +6,6 @@ import { supabase } from "./supabaseClient";
 function EditCustomer() {
   const [customers, setCustomers] = useState([]);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [filteredCustomers, setFilteredCustomers] = useState([]);
   const [formData, setFormData] = useState({
     name: "",
     phone: "",
@@ -30,55 +28,31 @@ function EditCustomer() {
         console.error('Supabase error:', error);
       } else {
         setCustomers(data || []);
-        setFilteredCustomers(data || []);
       }
     } catch (error) {
       console.error('Error fetching customers:', error);
     }
   };
 
-  const handleSearch = () => {
-    if (!searchTerm.trim()) {
-      setFilteredCustomers(customers);
+  const handleCustomerSelect = (e) => {
+    const customerId = e.target.value;
+    
+    if (!customerId) {
+      setSelectedCustomer(null);
+      setFormData({ name: "", phone: "", gstNumber: "", address: "" });
       return;
     }
 
-    const filtered = customers.filter(customer => 
-      customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      customer.phone.includes(searchTerm) ||
-      (customer.gst_number && customer.gst_number.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      customer.address.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-    
-    setFilteredCustomers(filtered);
-  };
-
-  const handleSearchInputChange = (e) => {
-    const value = e.target.value;
-    setSearchTerm(value);
-    
-    // Auto-filter as user types
-    if (!value.trim()) {
-      setFilteredCustomers(customers);
-    } else {
-      const filtered = customers.filter(customer => 
-        customer.name.toLowerCase().includes(value.toLowerCase()) ||
-        customer.phone.includes(value) ||
-        (customer.gst_number && customer.gst_number.toLowerCase().includes(value.toLowerCase())) ||
-        customer.address.toLowerCase().includes(value.toLowerCase())
-      );
-      setFilteredCustomers(filtered);
+    const customer = customers.find(c => c.id.toString() === customerId);
+    if (customer) {
+      setSelectedCustomer(customer);
+      setFormData({
+        name: customer.name,
+        phone: customer.phone,
+        gstNumber: customer.gst_number || "",
+        address: customer.address
+      });
     }
-  };
-
-  const handleCustomerSelect = (customer) => {
-    setSelectedCustomer(customer);
-    setFormData({
-      name: customer.name,
-      phone: customer.phone,
-      gstNumber: customer.gst_number || "",
-      address: customer.address
-    });
   };
 
   const handleChange = (e) => {
@@ -109,7 +83,6 @@ function EditCustomer() {
         alert("Customer updated successfully!");
         setSelectedCustomer(null);
         setFormData({ name: "", phone: "", gstNumber: "", address: "" });
-        setSearchTerm("");
         fetchCustomers();
       }
     } catch (error) {
@@ -134,7 +107,6 @@ function EditCustomer() {
         alert("Customer deleted successfully!");
         setSelectedCustomer(null);
         setFormData({ name: "", phone: "", gstNumber: "", address: "" });
-        setSearchTerm("");
         fetchCustomers();
       }
     } catch (error) {
@@ -144,53 +116,27 @@ function EditCustomer() {
   };
 
   return (
-    <div className="customer-container">
-      <div className="customer-form-card">
-        <h2 className="customer-form-title">Edit Customer</h2>
+    <div className="page-container">
+      <div className="page-card">
+        <h2 className="page-title">Edit Customer</h2>
 
         {!selectedCustomer ? (
-          <div className="customer-list">
-            <form onSubmit={(e) => { e.preventDefault(); handleSearch(); }} className="search-form-customer">
-              <div className="search-input-group">
-                <label>Search Customer</label>
-                <input
-                  type="text"
-                  placeholder="Search by name, phone, GST, or address..."
-                  value={searchTerm}
-                  onChange={handleSearchInputChange}
-                  className="search-input-customer"
-                />
-              </div>
-              
-              <button type="submit" className="btn-search-customer">
-                🔍 Search
-              </button>
-            </form>
-
-            <h3 style={{ fontSize: '16px', marginBottom: '15px', color: '#666' }}>
-              {filteredCustomers.length === customers.length 
-                ? 'Select a customer to edit:' 
-                : `Found ${filteredCustomers.length} customer(s):`
-              }
-            </h3>
-            {filteredCustomers.length > 0 ? (
-              filteredCustomers.map((customer, index) => (
-                <div 
-                  key={index} 
-                  className="customer-item"
-                  onClick={() => handleCustomerSelect(customer)}
-                >
-                  <div className="customer-item-name">{customer.name}</div>
-                  <div className="customer-item-details">
-                    📞 {customer.phone} | 📍 {customer.address.substring(0, 30)}...
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="no-customers">
-                {searchTerm ? 'No customers match your search.' : 'No customers found. Add a customer first.'}
-              </div>
-            )}
+          <div className="select-customer-section">
+            <div className="input-group">
+              <label>Select Customer</label>
+              <select
+                onChange={handleCustomerSelect}
+                value={selectedCustomer?.id || ""}
+                className="customer-select"
+              >
+                <option value="">-- Select a Customer --</option>
+                {customers.map((customer) => (
+                  <option key={customer.id} value={customer.id}>
+                    {customer.name} - {customer.phone}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         ) : (
           <form onSubmit={handleSubmit}>
@@ -256,8 +202,6 @@ function EditCustomer() {
                 onClick={() => {
                   setSelectedCustomer(null);
                   setFormData({ name: "", phone: "", gstNumber: "", address: "" });
-                  setSearchTerm("");
-                  setFilteredCustomers(customers);
                 }}
               >
                 Cancel
