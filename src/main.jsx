@@ -121,6 +121,8 @@ function App() {
         return <AddProduct />;
       case 'editProduct':
         return <EditProduct />;
+      case 'viewDC':
+        return <ViewDC onNavigate={setCurrentPage} />;
       default:
         return <DeliveryForm onNavigate={setCurrentPage} />;
     }
