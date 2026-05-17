@@ -17,7 +17,6 @@ import Signup from './Signup.jsx'
 import ForgotPassword from './ForgotPassword.jsx'
 import { supabase } from './supabaseClient.js'
 
-
 function App() {
   const [currentPage, setCurrentPage] = useState('delivery');
   const [authPage, setAuthPage] = useState('login'); // 'login', 'signup', or 'forgot'
